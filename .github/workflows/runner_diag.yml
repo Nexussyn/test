@@ -1,0 +1,19 @@
+name: Runner diagnostic
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Runner diagnostic
+        run: |
+          echo "RUNNER_DIAG_START"
+          date -u
+          uname -a
+          python3 --version
+          curl -fsS https://api.github.com/repos/Nexussyn/test >/dev/null
+          echo "RUNNER_DIAG_OK"
