@@ -1,0 +1,79 @@
+name: BTC exhaustion deep backtest
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      days:
+        description: Lookback days (Binance OI is limited to latest 30 days)
+        required: true
+        default: '30'
+      flow_threshold:
+        description: Absolute Delta/Volume threshold
+        required: true
+        default: '0.25'
+      min_volume:
+        description: Minimum 5m BTC volume
+        required: true
+        default: '500'
+      persistence_min:
+        description: Minimum next-bar |Delta| / shock |Delta|
+        required: true
+        default: '0.50'
+      elasticity_decay_min:
+        description: Minimum elasticity decay
+        required: true
+        default: '0.50'
+      cooldown:
+        description: De-clustering cooldown in minutes
+        required: true
+        default: '30'
+
+permissions:
+  contents: read
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip numpy pandas scipy requests
+      - name: Run frozen deep test
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DAYS='${{ inputs.days }}'
+            THR='${{ inputs.flow_threshold }}'
+            VOL='${{ inputs.min_volume }}'
+            PMIN='${{ inputs.persistence_min }}'
+            EMIN='${{ inputs.elasticity_decay_min }}'
+            CD='${{ inputs.cooldown }}'
+          else
+            DAYS='30'; THR='0.25'; VOL='500'; PMIN='0.50'; EMIN='0.50'; CD='30'
+          fi
+          python backtest_exhaustion.py --days "$DAYS" --flow-threshold "$THR" --min-volume "$VOL" --persistence-min "$PMIN" --elasticity-decay-min "$EMIN" --cooldown "$CD"
+      - name: Upload backtest artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: btc-exhaustion-deep-results
+          path: |
+            backtest_summary.csv
+            baseline_15m.csv
+            data_quality.csv
+            direction_split.csv
+            cost_sensitivity.csv
+            matched_randomization_15m.csv
+            out_of_sample_summary.csv
+            threshold_grid.csv
+            README_results.txt
+            events_*.csv
+          if-no-files-found: error
+          retention-days: 14
